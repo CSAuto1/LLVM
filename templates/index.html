@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ThaiLLM Chat Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Highlight.js สำหรับ syntax highlighting code block สวยงาม -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  
+  <!-- Marked.js สำหรับแปลง Markdown เป็น HTML -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-surface: #1e293b;
+      --bg-chat: #182234;
+      --accent-color: #38bdf8;
+      --accent-hover: #0284c7;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --user-bubble: #2563eb;
+      --bot-bubble: #334155;
+      --border-color: #334155;
+      --danger-color: #ef4444;
+      --danger-hover: #dc2626;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Prompt', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background-color: var(--bg-surface);
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #06b6d4, #3b82f6);
+      color: white;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-weight: 500;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .model-info {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .btn-clear {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-clear:hover {
+      background-color: var(--danger-color);
+      color: #ffffff;
+      border-color: var(--danger-color);
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 960px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1rem;
+      overflow: hidden;
+    }
+
+    #chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      background-color: var(--bg-chat);
+      border-radius: 14px;
+      border: 1px solid var(--border-color);
+      scroll-behavior: smooth;
+    }
+
+    .message-row {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+      max-width: 85%;
+      position: relative;
+    }
+
+    .message-row.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .message-row.assistant {
+      align-self: flex-start;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .avatar.user-avatar {
+      background-color: #3b82f6;
+    }
+
+    .avatar.bot-avatar {
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+    }
+
+    .message-wrapper {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .message-content {
+      padding: 0.85rem 1.15rem;
+      border-radius: 14px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
+    .message-row.user .message-content {
+      background-color: var(--user-bubble);
+      color: #ffffff;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+    }
+
+    .message-row.assistant .message-content {
+      background-color: var(--bot-bubble);
+      color: var(--text-main);
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Markdown Styling */
+    .message-content p {
+      margin-bottom: 0.5rem;
+    }
+    .message-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    .message-content strong {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+
+    .message-content ul, .message-content ol {
+      margin-left: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .message-content blockquote {
+      border-left: 3px solid var(--accent-color);
+      padding-left: 0.75rem;
+      margin: 0.5rem 0;
+      color: var(--text-muted);
+    }
+
+    .message-content pre {
+      background-color: #0d1117 !important;
+      padding: 0.85rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 0.6rem 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .message-content code {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.88rem;
+    }
+
+    .message-content p code {
+      background-color: rgba(255, 255, 255, 0.12);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      color: #f1f5f9;
+    }
+
+    /* Copy Button Toolbar */
+    .message-actions {
+      display: flex;
+      justify-content: flex-start;
+      margin-top: 0.35rem;
+    }
+
+    .btn-copy {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-muted);
+      border-radius: 6px;
+      padding: 0.25rem 0.55rem;
+      font-size: 0.75rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .btn-copy:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-copy.copied {
+      color: #4ade80;
+      border-color: #4ade80;
+    }
+
+    /* Loading / Typing indicator */
+    .loading-box {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .dots-wave {
+      display: flex;
+      gap: 4px;
+    }
+
+    .dots-wave span {
+      width: 7px;
+      height: 7px;
+      background-color: var(--accent-color);
+      border-radius: 50%;
+      animation: pulse 1.4s infinite ease-in-out both;
+    }
+
+    .dots-wave span:nth-child(1) { animation-delay: -0.32s; }
+    .dots-wave span:nth-child(2) { animation-delay: -0.16s; }
+
+    @keyframes pulse {
+      0%, 80%, 100% { transform: scale(0.3); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    .input-section {
+      margin-top: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .input-bar {
+      display: flex;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 0.4rem 0.5rem;
+      align-items: flex-end;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-bar:focus-within {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+    }
+
+    textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.95rem;
+      padding: 0.5rem 0.75rem;
+      resize: none;
+      max-height: 150px;
+      min-height: 24px;
+      line-height: 1.4;
+    }
+
+    button#send-btn {
+      background-color: var(--accent-color);
+      border: none;
+      color: #0f172a;
+      font-weight: 600;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: inherit;
+    }
+
+    button#send-btn:hover:not(:disabled) {
+      background-color: var(--accent-hover);
+      color: #ffffff;
+    }
+
+    button#send-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      filter: grayscale(40%);
+    }
+
+    .footer-note {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.3rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand-title">
+      <span>🇹🇭 ThaiLLM AI Assistant</span>
+      <span class="brand-badge">AIForThai</span>
+    </div>
+    <div class="header-actions">
+      <div class="model-info">
+        Model: <code>pathumma-thaillm-qwen3-8b-think-3.0.0</code>
+      </div>
+      <button id="clear-btn" class="btn-clear" title="ล้างประวัติการสนทนาทั้งหมด">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          <line x1="10" y1="11" x2="10" y2="17"></line>
+          <line x1="14" y1="11" x2="14" y2="17"></line>
+        </svg>
+        <span>ล้างแชท</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <div id="chat-container">
+      <!-- ข้อความเริ่มต้น -->
+    </div>
+
+    <div class="input-section">
+      <div class="input-bar">
+        <textarea id="user-input" rows="1" placeholder="พิมพ์ข้อความของคุณที่นี่... (กด Shift + Enter เพื่อขึ้นบรรทัดใหม่)"></textarea>
+        <button id="send-btn" type="button">
+          <span>ส่ง</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+      <div class="footer-note">
+        Powered by AIForThai & ThaiLLM API
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ตั้งค่า marked ให้ highlight syntax ของ code block
+    marked.setOptions({
+      highlight: function(code, lang) {
+        if (lang && hljs.getLanguage(lang)) {
+          return hljs.highlight(code, { language: lang }).value;
+        }
+        return hljs.highlightAuto(code).value;
+      },
+      breaks: true
+    });
+
+    const chatContainer = document.getElementById('chat-container');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const clearBtn = document.getElementById('clear-btn');
+
+    const INITIAL_GREETING = "สวัสดีครับ! ผมเป็นโมเดลปัญญาประดิษฐ์ภาษาไทยที่เชื่อมต่อผ่าน ThaiLLM มีอะไรให้ผมช่วยเหลือวันนี้ไหมครับ?";
+    let conversationHistory = [];
+
+    // ฟังก์ชันเลื่อนหน้าจอลงล่างสุดอัตโนมัติ
+    function scrollToBottom() {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    // ฟังก์ชันคัดลอกข้อความ
+    async function copyToClipboard(text, buttonElement) {
+      try {
+        await navigator.clipboard.writeText(text);
+        buttonElement.classList.add('copied');
+        buttonElement.innerHTML = `
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>คัดลอกแล้ว!</span>
+        `;
+        setTimeout(() => {
+          buttonElement.classList.remove('copied');
+          buttonElement.innerHTML = `
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span>คัดลอก</span>
+          `;
+        }, 2000);
+      } catch (err) {
+        console.error('Copy failed: ', err);
+      }
+    }
+
+    // ฟังก์ชันเพิ่มข้อความลงในแชท
+    function appendMessage(role, content) {
+      const row = document.createElement('div');
+      row.className = `message-row ${role}`;
+
+      const avatar = document.createElement('div');
+      avatar.className = `avatar ${role === 'user' ? 'user-avatar' : 'bot-avatar'}`;
+      avatar.textContent = role === 'user' ? '👤' : '🤖';
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'message-wrapper';
+
+      const contentBox = document.createElement('div');
+      contentBox.className = 'message-content';
+
+      if (role === 'assistant') {
+        contentBox.innerHTML = marked.parse(content);
+
+        // เพิ่มปุ่มคัดลอกสำหรับข้อความ AI
+        const actionsBox = document.createElement('div');
+        actionsBox.className = 'message-actions';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'btn-copy';
+        copyBtn.title = 'คัดลอกข้อความ';
+        copyBtn.innerHTML = `
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <span>คัดลอก</span>
+        `;
+        copyBtn.addEventListener('click', () => copyToClipboard(content, copyBtn));
+        actionsBox.appendChild(copyBtn);
+
+        wrapper.appendChild(contentBox);
+        wrapper.appendChild(actionsBox);
+      } else {
+        contentBox.textContent = content;
+        wrapper.appendChild(contentBox);
+      }
+
+      row.appendChild(avatar);
+      row.appendChild(wrapper);
+      chatContainer.appendChild(row);
+
+      scrollToBottom();
+    }
+
+    // แสดงสถานะ "AI กำลังคิด..."
+    function showTypingIndicator() {
+      const row = document.createElement('div');
+      row.className = 'message-row assistant';
+      row.id = 'typing-indicator-row';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar bot-avatar';
+      avatar.textContent = '🤖';
+
+      const contentBox = document.createElement('div');
+      contentBox.className = 'message-content loading-box';
+      contentBox.innerHTML = `
+        <span>AI กำลังคิด</span>
+        <div class="dots-wave">
+          <span></span><span></span><span></span>
+        </div>
+      `;
+
+      row.appendChild(avatar);
+      row.appendChild(contentBox);
+      chatContainer.appendChild(row);
+
+      scrollToBottom();
+    }
+
+    // ลบสถานะโหลดเมื่อได้คำตอบ
+    function removeTypingIndicator() {
+      const indicator = document.getElementById('typing-indicator-row');
+      if (indicator) {
+        indicator.remove();
+      }
+    }
+
+    // เริ่มต้นระบบแชท
+    function resetChat() {
+      chatContainer.innerHTML = '';
+      conversationHistory = [
+        { role: "assistant", content: INITIAL_GREETING }
+      ];
+      appendMessage('assistant', INITIAL_GREETING);
+    }
+
+    // จัดการ Event สำหรับล้างแชท
+    clearBtn.addEventListener('click', () => {
+      if (confirm('คุณต้องการล้างประวัติการแชททั้งหมดใช่หรือไม่?')) {
+        resetChat();
+      }
+    });
+
+    // ปรับความสูงช่องพิมพ์ข้อความอัตโนมัติ
+    userInput.addEventListener('input', () => {
+      userInput.style.height = 'auto';
+      userInput.style.height = Math.min(userInput.scrollHeight, 150) + 'px';
+    });
+
+    // กด Enter เพื่อส่ง (Shift + Enter เพื่อขึ้นบรรทัดใหม่)
+    userInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    // ส่งข้อความไปยัง Backend
+    async function sendMessage() {
+      const message = userInput.value.trim();
+      if (!message) return;
+
+      // 1. เพิ่มข้อความ User
+      appendMessage('user', message);
+      conversationHistory.push({ role: 'user', content: message });
+
+      userInput.value = '';
+      userInput.style.height = 'auto';
+
+      // 2. ปิดปุ่มส่งและแสดงสถานะ AI กำลังคิด
+      userInput.disabled = true;
+      sendBtn.disabled = true;
+      showTypingIndicator();
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: message,
+            messages: conversationHistory
+          })
+        });
+
+        const data = await response.json();
+        removeTypingIndicator();
+
+        if (response.ok && data.reply) {
+          appendMessage('assistant', data.reply);
+          conversationHistory.push({ role: 'assistant', content: data.reply });
+        } else {
+          const err = data.error || 'เกิดข้อผิดพลาดในการเชื่อมต่อกับ ThaiLLM API';
+          appendMessage('assistant', `⚠️ **ข้อผิดพลาด:** ${err}`);
+        }
+      } catch (err) {
+        removeTypingIndicator();
+        appendMessage('assistant', `⚠️ **ไม่สามารถติดต่อเซิร์ฟเวอร์ได้:** ${err.message}`);
+      } finally {
+        userInput.disabled = false;
+        sendBtn.disabled = false;
+        userInput.focus();
+        scrollToBottom();
+      }
+    }
+
+    // เริ่มต้นแชทครั้งแรก
+    resetChat();
+  </script>
+</body>
+</html>
